@@ -91,12 +91,16 @@ describe.skipIf(process.platform === 'win32')('vision-model prompt guard', () =>
 
   it('sends configured headers only to the provider origin and base path', async () => {
     const received: Array<{ url: string; route?: string; tenant?: string }> = []
+    let crossOriginRedirect = ''
     const providerServer = createServer((request, response) => {
       received.push({
         url: request.url ?? '',
         ...(request.headers['x-opencode-session'] === undefined ? {} : { route: request.headers['x-opencode-session'] }),
         ...(request.headers['x-tenant'] === undefined ? {} : { tenant: request.headers['x-tenant'] }),
       })
+      if (request.url === '/v1/redirect') {
+        response.writeHead(302, { Location: crossOriginRedirect })
+      }
       response.end('ok')
     })
     const otherServer = createServer((request, response) => {
@@ -118,6 +122,7 @@ describe.skipIf(process.platform === 'win32')('vision-model prompt guard', () =>
         throw new Error('fixture servers did not bind')
       }
       const providerBase = `http://127.0.0.1:${providerAddress.port}/v1`
+      crossOriginRedirect = `http://127.0.0.1:${otherAddress.port}/redirect-target`
       const root = await mkdtemp(join(tmpdir(), 'dsh-vt-extra-headers-'))
       roots.push(root)
       const cleanHome = join(root, 'home')
@@ -127,7 +132,7 @@ describe.skipIf(process.platform === 'win32')('vision-model prompt guard', () =>
         'import urllib.request',
         'DEFAULT_PROMPT="default description"',
         'def describe_image(image_url,prompt=None,*args,**kwargs):',
-        `    urls=[${JSON.stringify(`${providerBase}/chat/completions`)},${JSON.stringify(`http://127.0.0.1:${providerAddress.port}/v10`)},${JSON.stringify(`http://127.0.0.1:${otherAddress.port}/elsewhere`)}]`,
+        `    urls=[${JSON.stringify(`${providerBase}/chat/completions`)},${JSON.stringify(`http://127.0.0.1:${providerAddress.port}/v10`)},${JSON.stringify(`http://127.0.0.1:${otherAddress.port}/elsewhere`)},${JSON.stringify(`${providerBase}/redirect`)}]`,
         '    for url in urls:',
         '        with urllib.request.urlopen(urllib.request.Request(url,data=b"{}")) as response: response.read()',
         '    return "done"',
@@ -162,6 +167,8 @@ describe.skipIf(process.platform === 'win32')('vision-model prompt guard', () =>
         { url: '/v1/chat/completions', route: 'route-id', tenant: 'acme' },
         { url: '/v10' },
         { url: 'other:/elsewhere' },
+        { url: '/v1/redirect', route: 'route-id', tenant: 'acme' },
+        { url: 'other:/redirect-target' },
       ])
     } finally {
       await Promise.all([
