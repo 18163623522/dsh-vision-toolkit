@@ -32,6 +32,48 @@ async function writeVisionScript(root: string, name: string, prompt: string | un
 }
 
 describe.skipIf(process.platform === 'win32')('vision-model prompt guard', () => {
+  it('tries a reachable IPv4 address before an unusable IPv6 address', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-vt-ipv4-first-'))
+    roots.push(root)
+    const cleanHome = join(root, 'home')
+    await mkdir(join(root, 'bin'), { recursive: true })
+    await mkdir(cleanHome, { recursive: true })
+    await writeFile(join(root, 'vision_client.py'), [
+      'import socket',
+      'DEFAULT_PROMPT="default"',
+      'attempts=[]',
+      'socket.getaddrinfo=lambda *args,**kwargs:[',
+      '    (socket.AF_INET6,socket.SOCK_STREAM,0,"",("::1",443,0,0)),',
+      '    (socket.AF_INET,socket.SOCK_STREAM,0,"",("127.0.0.1",443)),',
+      ']',
+      'class FakeSocket:',
+      '    def __init__(self,family,*args): self.family=family',
+      '    def settimeout(self,timeout): pass',
+      '    def connect(self,address):',
+      '        attempts.append(self.family)',
+      '        if self.family==socket.AF_INET6: raise TimeoutError("unusable IPv6")',
+      '    def close(self): pass',
+      'socket.socket=FakeSocket',
+      'def describe_image(image_url,prompt=None,*args,**kwargs):',
+      '    connection=socket.create_connection(("fake.example",443),timeout=1)',
+      '    connection.close()',
+      '    return ",".join(str(family) for family in attempts)',
+      '',
+    ].join('\n'))
+    await writeVisionScript(root, 'glance', undefined)
+    const ctx = new Context()
+    contexts.push(ctx)
+    await ctx.plugin(LocalSubprocessService)
+    const adapter = new UpstreamAdapter(ctx, resolveConfig({ runtime: { mode: 'managed' } }), {
+      source: 'managed', root, cleanHome,
+      python: { program: 'python3', prefix: [], display: 'python3' },
+      pythonVersion: '3.13', dependencies: {},
+    })
+    const result = await adapter.run('glance', [], { signal: new AbortController().signal })
+    expect(result.outcome.exitCode).toBe(0)
+    expect(result.stdout.trim()).toBe('2') // socket.AF_INET; IPv6 was never attempted.
+  })
+
   it('marks image instructions untrusted for direct and long-OCR vision calls', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-vt-prompt-guard-'))
     roots.push(root)
