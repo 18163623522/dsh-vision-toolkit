@@ -8,6 +8,8 @@ All notable user-facing changes to DSH Vision Toolkit are documented in this fil
 
 - Added an explicit OpenAI Responses protocol for custom vision providers. An optional, constrained `reasoningEffort` is forwarded only for Responses requests, exposed conditionally in bilingual Settings, and included in both live-Session and durable evidence cache identities. Existing OpenAI configurations remain on Chat Completions and omit effort by default.
 
+- Added hardened `provider.headers` for non-secret deployment metadata and `provider.sessionHeaders` for gateways such as OpenCode Zen that require per-session routing. Session values are process-keyed HMAC identifiers that never expose raw Session ids or workspace paths; configured headers are bounded, conflict-checked, error-redacted, cache-isolated, restricted to the provider origin/base path, and shared by both requests in a connection-and-model health operation. The manifest-verified vendored snapshot remains unchanged ([#144](https://github.com/Anionex/dsh-vision-toolkit/issues/144), [#145](https://github.com/Anionex/dsh-vision-toolkit/pull/145)).
+
 ### Fixed
 
 - Restored startup and live Settings on DSH 0.1.7, whose Config projection replaced the old `settings.register/get/watch` API. The plugin now uses the host's matching Schema form, unwraps live configuration values for runtime use, and follows Settings document updates. Earlier DSH versions continue using their registration API.

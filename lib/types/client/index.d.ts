@@ -248,6 +248,8 @@ interface SettingsValue {
         reasoningEffort?: string;
         anthropicThinking?: 'omit' | 'disabled' | 'adaptive';
         userAgent?: string;
+        headers?: Record<string, string>;
+        sessionHeaders?: string[];
     };
     language?: 'zh' | 'en';
     timeoutMs?: number;

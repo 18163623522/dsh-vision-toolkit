@@ -132,7 +132,10 @@ describe('persistent image evidence cache', () => {
     const records = new Map<string, unknown>()
     const firstHarness = storageHarness({ records, workspace })
     const glance = vi.fn(async () => glanceResult('stable description'))
-    const runtimeHash = 'a'.repeat(64)
+    const staticHeaderValue = 'non-secret-deployment-metadata'
+    const runtimeHash = evidenceRuntimeFingerprint(resolveConfig({
+      provider: { headers: { 'x-tenant': staticHeaderValue } },
+    }))
     const firstStore = new SessionEvidenceStore(firstHarness.ctx)
     const first = await convertImagesToEvidence(
       firstHarness.ctx,
@@ -147,6 +150,7 @@ describe('persistent image evidence cache', () => {
     expect(glance).toHaveBeenCalledTimes(1)
     expect(records.size).toBe(1)
     expect([...records.values()][0]).not.toContain('describe this image')
+    expect([...records.values()][0]).not.toContain(staticHeaderValue)
     firstStore.dispose()
 
     const secondHarness = storageHarness({ records, workspace })
@@ -466,6 +470,9 @@ describe('persistent image evidence cache', () => {
     const responsesLow = resolveConfig({ provider: { protocol: 'responses', reasoningEffort: 'low' } })
     const responsesHigh = resolveConfig({ provider: { protocol: 'responses', reasoningEffort: 'high' } })
     const dormantEffort = resolveConfig({ provider: { protocol: 'openai', reasoningEffort: 'high' } })
+    const firstHeaders = resolveConfig({ provider: { headers: { 'x-tenant': 'alpha' } } })
+    const secondHeaders = resolveConfig({ provider: { headers: { 'x-tenant': 'beta' } } })
+    const sessionHeaders = resolveConfig({ provider: { sessionHeaders: ['x-route'] } })
     const firstCredential = 'a'.repeat(64)
     const secondCredential = 'b'.repeat(64)
 
@@ -478,6 +485,10 @@ describe('persistent image evidence cache', () => {
     expect(evidenceRuntimeFingerprint(otherStorage)).not.toBe(evidenceRuntimeFingerprint(baseline))
     expect(evidenceRuntimeFingerprint(responsesLow)).not.toBe(evidenceRuntimeFingerprint(responsesHigh))
     expect(evidenceRuntimeFingerprint(dormantEffort)).toBe(evidenceRuntimeFingerprint(baseline))
+    expect(evidenceRuntimeFingerprint(firstHeaders)).not.toBe(evidenceRuntimeFingerprint(baseline))
+    expect(evidenceRuntimeFingerprint(secondHeaders)).not.toBe(evidenceRuntimeFingerprint(firstHeaders))
+    expect(evidenceRuntimeFingerprint(sessionHeaders)).not.toBe(evidenceRuntimeFingerprint(baseline))
+    expect(evidenceRuntimeFingerprint(firstHeaders)).not.toContain('alpha')
     expect(evidenceRuntimeFingerprint(baseline, firstCredential, 'off'))
       .not.toBe(evidenceRuntimeFingerprint(baseline, firstCredential, 'on'))
     expect(evidenceRuntimeFingerprint(baseline, firstCredential))
