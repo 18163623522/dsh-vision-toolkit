@@ -4,6 +4,10 @@ All notable user-facing changes to DSH Vision Toolkit are documented in this fil
 
 ## [Unreleased]
 
+### Fixed
+
+- Vision API subprocesses now try IPv4 addresses before IPv6 when both are returned by DNS. This avoids exhausting the connection timeout on unusable fake IPv6 addresses in TUN proxies while preserving IPv6-only endpoints.
+
 ## [0.1.45] - 2026-09-14
 
 ### Fixed
