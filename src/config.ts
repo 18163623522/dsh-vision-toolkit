@@ -9,7 +9,7 @@
 import z from '@deepseek-ai/schemastery'
 import type Schema from '@deepseek-ai/schemastery'
 import { credentialRef, type CredentialRef } from '@deepseek-ai/dsh-credentials'
-import type { SettingsNamespace } from '@deepseek-ai/dsh-settings'
+import SettingsService, { type SettingsNamespace } from '@deepseek-ai/dsh-settings'
 import { VisionToolkitError } from './errors.ts'
 import {
   BUILT_IN_FREE_VISION_BASE_URL,
@@ -134,7 +134,7 @@ export interface VisionToolkitConfig {
 }
 
 /** Configuration schema with the documented P0 defaults. */
-export const Config: Schema<VisionToolkitConfig> = z.object({
+export const LegacyConfig: Schema<VisionToolkitConfig> = z.object({
   provider: z.object({
     baseUrl: z.string().default(BUILT_IN_FREE_VISION_BASE_URL),
     credential: z.string().default(BUILT_IN_FREE_VISION_CREDENTIAL),
@@ -163,6 +163,42 @@ export const Config: Schema<VisionToolkitConfig> = z.object({
     hidden: z.boolean().default(true),
   }),
 })
+
+/** New Settings reads this metadata; older Schemastery has no .volatile() method. */
+export const VolatileConfig: Schema<VisionToolkitConfig> = (() => {
+  const schema = new z(LegacyConfig.toJSON()) as Schema<VisionToolkitConfig>
+  const markFields = (node: Schema): void => {
+    if (node.type === 'object') {
+      for (const field of Object.values(node.dict ?? {})) markFields(field as Schema)
+    } else {
+      node.meta.volatile = true
+    }
+  }
+  markFields(schema)
+  return schema
+})()
+
+/** Cordis resolves this export before apply(); select the host's schema dialect here. */
+export const Config: Schema<VisionToolkitConfig> = typeof (SettingsService.prototype as { register?: unknown }).register === 'function'
+  ? LegacyConfig
+  : VolatileConfig
+
+/** Resolve Schemastery's live field wrappers into ordinary config data. */
+export function plainVisionConfig(value: VisionToolkitConfig): VisionToolkitConfig {
+  const visit = (current: unknown): unknown => {
+    if (current !== null && typeof current === 'object'
+      && typeof (current as { get?: unknown }).get === 'function'
+      && Symbol.for('cosmokit.volatile.write') in current) {
+      return visit((current as { get(): unknown }).get())
+    }
+    if (Array.isArray(current)) return current.map(visit)
+    if (current !== null && typeof current === 'object') {
+      return Object.fromEntries(Object.entries(current).map(([key, child]) => [key, visit(child)]))
+    }
+    return current
+  }
+  return visit(value) as VisionToolkitConfig
+}
 
 /** Configuration after static validation, with every default materialized. */
 export interface ResolvedVisionToolkitConfig {
