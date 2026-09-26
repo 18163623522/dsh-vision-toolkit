@@ -89,9 +89,9 @@ export interface VisionToolkitConfig {
     };
 }
 /** Configuration schema with the documented P0 defaults. */
-export declare const VolatileConfig: Schema<VisionToolkitConfig>;
-/** Older Settings resolves Config directly and cannot consume volatile values. */
 export declare const LegacyConfig: Schema<VisionToolkitConfig>;
+/** New Settings reads this metadata; older Schemastery has no .volatile() method. */
+export declare const VolatileConfig: Schema<VisionToolkitConfig>;
 /** Cordis resolves this export before apply(); select the host's schema dialect here. */
 export declare const Config: Schema<VisionToolkitConfig>;
 /** Resolve Schemastery's live field wrappers into ordinary config data. */

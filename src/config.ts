@@ -134,43 +134,48 @@ export interface VisionToolkitConfig {
 }
 
 /** Configuration schema with the documented P0 defaults. */
-export const VolatileConfig: Schema<VisionToolkitConfig> = z.object({
+export const LegacyConfig: Schema<VisionToolkitConfig> = z.object({
   provider: z.object({
-    baseUrl: z.string().default(BUILT_IN_FREE_VISION_BASE_URL).volatile(),
-    credential: z.string().default(BUILT_IN_FREE_VISION_CREDENTIAL).volatile(),
-    model: z.string().default(BUILT_IN_FREE_VISION_MODEL).volatile(),
-    protocol: z.union(['openai', 'anthropic'] as const).default('openai').volatile(),
-    anthropicThinking: z.union(['omit', 'disabled', 'adaptive'] as const).default('omit').volatile(),
-    userAgent: z.string().default(DEFAULT_VISION_USER_AGENT).volatile(),
+    baseUrl: z.string().default(BUILT_IN_FREE_VISION_BASE_URL),
+    credential: z.string().default(BUILT_IN_FREE_VISION_CREDENTIAL),
+    model: z.string().default(BUILT_IN_FREE_VISION_MODEL),
+    protocol: z.union(['openai', 'anthropic'] as const).default('openai'),
+    anthropicThinking: z.union(['omit', 'disabled', 'adaptive'] as const).default('omit'),
+    userAgent: z.string().default(DEFAULT_VISION_USER_AGENT),
   }),
-  language: z.union(['zh', 'en'] as const).default('zh').volatile(),
-  timeoutMs: z.number().default(30000).volatile(),
-  maxImageBytes: z.number().default(4194304).volatile(),
-  maxImagePixels: z.number().default(20000000).volatile(),
-  concurrency: z.number().default(4).volatile(),
+  language: z.union(['zh', 'en'] as const).default('zh'),
+  timeoutMs: z.number().default(30000),
+  maxImageBytes: z.number().default(4194304),
+  maxImagePixels: z.number().default(20000000),
+  concurrency: z.number().default(4),
   runtime: z.object({
-    mode: z.union(['managed', 'external'] as const).default('managed').volatile(),
-    agentVisionToolkitPath: z.string().volatile(),
-    python: z.string().volatile(),
+    mode: z.union(['managed', 'external'] as const).default('managed'),
+    agentVisionToolkitPath: z.string(),
+    python: z.string(),
   }),
-  storageDir: z.string().volatile(),
-  storageHistory: z.array(z.string()).default([]).volatile(),
-  allowedDirs: z.array(z.string()).default([]).volatile(),
+  storageDir: z.string(),
+  storageHistory: z.array(z.string()).default([]),
+  allowedDirs: z.array(z.string()).default([]),
   imageInputVariants: z.object({
-    enabled: z.boolean().default(true).volatile(),
-    providers: z.array(z.string()).default([]).volatile(),
-    autoSwitch: z.boolean().default(true).volatile(),
-    hidden: z.boolean().default(true).volatile(),
+    enabled: z.boolean().default(true),
+    providers: z.array(z.string()).default([]),
+    autoSwitch: z.boolean().default(true),
+    hidden: z.boolean().default(true),
   }),
 })
 
-/** Older Settings resolves Config directly and cannot consume volatile values. */
-export const LegacyConfig: Schema<VisionToolkitConfig> = (() => {
-  const serialized = VolatileConfig.toJSON()
-  for (const node of Object.values(serialized.refs ?? {})) {
-    if (node.meta !== undefined) delete node.meta.volatile
+/** New Settings reads this metadata; older Schemastery has no .volatile() method. */
+export const VolatileConfig: Schema<VisionToolkitConfig> = (() => {
+  const schema = new z(LegacyConfig.toJSON()) as Schema<VisionToolkitConfig>
+  const markFields = (node: Schema): void => {
+    if (node.type === 'object') {
+      for (const field of Object.values(node.dict ?? {})) markFields(field as Schema)
+    } else {
+      node.meta.volatile = true
+    }
   }
-  return new z(serialized) as Schema<VisionToolkitConfig>
+  markFields(schema)
+  return schema
 })()
 
 /** Cordis resolves this export before apply(); select the host's schema dialect here. */
