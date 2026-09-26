@@ -209,3 +209,46 @@ jobs:
               ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
           print(f"parsed {len(files)} vendored Python files")
           PY
+
+  trace-windows-python314:
+    if: github.event.repository.visibility == 'public'
+    name: Trace (Windows, Python 3.14)
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          cache: pnpm
+
+      - name: Install pinned trace dependencies
+        run: python -m pip install --requirement runtime/requirements.lock
+
+      - name: Install project dependencies
+        run: pnpm install --frozen-lockfile --trust-lockfile --registry=https://registry.npmjs.org
+
+      - name: Build against public registry exports
+        run: pnpm run build
+
+      - name: Verify committed build artifacts
+        run: git diff --exit-code -- lib
+
+      - name: Trace a real image through the adapter and pinned vtracer extension
+        shell: bash
+        run: |
+          export DSH_VISION_TRACE_PY314="$(python -c 'import sys; print(sys.executable)')"
+          pnpm exec vitest run tests/trace-py314.spec.ts
