@@ -10,9 +10,9 @@
  * @module @anionex/dsh-vision-toolkit
  */
 import type { Context } from '@deepseek-ai/cordis';
-import { Config, type VisionToolkitConfig } from './config.ts';
+import { type VisionToolkitConfig } from './config.ts';
 export declare const name = "@anionex/dsh-vision-toolkit";
-export { Config };
+export { Config } from './config.ts';
 export declare const inject: string[];
 /** Plugin entry: validate configuration synchronously, then mount asynchronously. */
 export declare function apply(ctx: Context, config?: VisionToolkitConfig): Promise<() => void>;

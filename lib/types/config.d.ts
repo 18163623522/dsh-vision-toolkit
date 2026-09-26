@@ -7,7 +7,7 @@
  */
 import type Schema from '@deepseek-ai/schemastery';
 import { type CredentialRef } from '@deepseek-ai/dsh-credentials';
-import type { SettingsNamespace } from '@deepseek-ai/dsh-settings';
+import { type SettingsNamespace } from '@deepseek-ai/dsh-settings';
 export { BUILT_IN_FREE_VISION_BASE_URL, BUILT_IN_FREE_VISION_CREDENTIAL, BUILT_IN_FREE_VISION_KEY, BUILT_IN_FREE_VISION_MODEL, } from './defaults.ts';
 /** Settings document namespace owned by this plugin. */
 export declare const VISION_TOOLKIT_SETTINGS_NAMESPACE: SettingsNamespace;
@@ -93,7 +93,13 @@ export interface VisionToolkitConfig {
     };
 }
 /** Configuration schema with the documented P0 defaults. */
+export declare const LegacyConfig: Schema<VisionToolkitConfig>;
+/** New Settings reads this metadata; older Schemastery has no .volatile() method. */
+export declare const VolatileConfig: Schema<VisionToolkitConfig>;
+/** Cordis resolves this export before apply(); select the host's schema dialect here. */
 export declare const Config: Schema<VisionToolkitConfig>;
+/** Resolve Schemastery's live field wrappers into ordinary config data. */
+export declare function plainVisionConfig(value: VisionToolkitConfig): VisionToolkitConfig;
 /** Configuration after static validation, with every default materialized. */
 export interface ResolvedVisionToolkitConfig {
     provider: {

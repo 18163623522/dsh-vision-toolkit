@@ -88,9 +88,19 @@ jobs:
 
       - name: Install the compatible DSH CLI for Profile acceptance
         run: |
-          npm install --global --prefix "$RUNNER_TEMP/dsh-cli" \
-            @deepseek-ai/dsh@${{ matrix.dsh }} \
-            --registry=https://registry.npmjs.org
+          # The 0.1.5-rc.1 CLI allows newer prerelease packages through its
+          # caret ranges. Packages published after the last green main run
+          # change its sandbox lifecycle and fail before this plugin loads.
+          if [ "${{ matrix.dsh }}" = "0.1.5-rc.1" ]; then
+            npm install --global --prefix "$RUNNER_TEMP/dsh-cli" \
+              @deepseek-ai/dsh@${{ matrix.dsh }} \
+              --before=2026-09-15T00:00:00Z \
+              --registry=https://registry.npmjs.org
+          else
+            npm install --global --prefix "$RUNNER_TEMP/dsh-cli" \
+              @deepseek-ai/dsh@${{ matrix.dsh }} \
+              --registry=https://registry.npmjs.org
+          fi
           echo "$RUNNER_TEMP/dsh-cli/bin" >> "$GITHUB_PATH"
 
       - name: Build against public registry exports

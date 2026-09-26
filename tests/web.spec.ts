@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Credentials } from '@deepseek-ai/dsh-credentials'
 import Settings, { type SettingsNamespace } from '@deepseek-ai/dsh-settings'
 import { ArtifactAccessController } from '../src/artifact-access.ts'
-import { Config, VISION_TOOLKIT_SETTINGS_NAMESPACE, resolveConfig } from '../src/config.ts'
+import { LegacyConfig, VISION_TOOLKIT_SETTINGS_NAMESPACE, resolveConfig } from '../src/config.ts'
 import type { VisionToolkitRuntime, VisionToolkitHealthResult } from '../src/runtime.ts'
 import type { PreparedRuntimeGeneration, RuntimeManagerStatus } from '../src/runtime-manager.ts'
 import {
@@ -134,7 +134,7 @@ async function setup() {
   await ctx.plugin(MemorySettings)
   const credentialService = credentials()
   ctx.provide('credentials', credentialService)
-  ctx.settings.register(VISION_TOOLKIT_SETTINGS_NAMESPACE, Config, {
+  ctx.settings.register(VISION_TOOLKIT_SETTINGS_NAMESPACE, LegacyConfig, {
     base: {}, applies: 'live', validate: (value) => { resolveConfig(value) },
   })
   const manager = new FakeManager()
