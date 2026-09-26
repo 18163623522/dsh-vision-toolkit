@@ -66,8 +66,10 @@ export interface VisionToolkitConfig {
     credential?: string
     /** Multimodal model name. */
     model?: string
-    /** Vision request protocol: OpenAI Chat Completions or Anthropic Messages. */
-    protocol?: 'openai' | 'anthropic'
+    /** Vision request protocol: OpenAI Chat Completions, OpenAI Responses, or Anthropic Messages. */
+    protocol?: 'openai' | 'responses' | 'anthropic'
+    /** Optional provider-specific reasoning effort for OpenAI Responses requests. */
+    reasoningEffort?: string
     /** Anthropic thinking field behavior; `omit` leaves model defaults untouched. */
     anthropicThinking?: 'omit' | 'disabled' | 'adaptive'
     /** Outbound User-Agent for provider requests and connection tests. */
@@ -143,7 +145,8 @@ export const LegacyConfig: Schema<VisionToolkitConfig> = z.object({
     baseUrl: z.string().default(BUILT_IN_FREE_VISION_BASE_URL),
     credential: z.string().default(BUILT_IN_FREE_VISION_CREDENTIAL),
     model: z.string().default(BUILT_IN_FREE_VISION_MODEL),
-    protocol: z.union(['openai', 'anthropic'] as const).default('openai'),
+    protocol: z.union(['openai', 'responses', 'anthropic'] as const).default('openai'),
+    reasoningEffort: z.string(),
     anthropicThinking: z.union(['omit', 'disabled', 'adaptive'] as const).default('omit'),
     userAgent: z.string().default(DEFAULT_VISION_USER_AGENT),
     headers: z.dict(z.string()).default({}),
@@ -212,7 +215,8 @@ export interface ResolvedVisionToolkitConfig {
     baseUrl: string
     credential: CredentialRef
     model: string
-    protocol: 'openai' | 'anthropic'
+    protocol: 'openai' | 'responses' | 'anthropic'
+    reasoningEffort?: string
     anthropicThinking: 'omit' | 'disabled' | 'adaptive'
     userAgent: string
     headers: Record<string, string>
@@ -243,6 +247,8 @@ const MAX_TIMEOUT_MS = 600000
 const MAX_IMAGE_BYTES = 268435456
 const MAX_IMAGE_PIXELS = 268435456
 const MAX_CONCURRENCY = 16
+const MAX_REASONING_EFFORT_LENGTH = 64
+const REASONING_EFFORT_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/u
 const MAX_PROVIDER_HEADER_COUNT = 32
 const MAX_PROVIDER_HEADER_NAME_BYTES = 128
 const MAX_PROVIDER_HEADER_VALUE_BYTES = 4096
@@ -373,8 +379,16 @@ export function resolveConfig(config: VisionToolkitConfig = {}): ResolvedVisionT
     throw new VisionToolkitError('config', 'provider.model must not be empty')
   }
   const protocol = provider.protocol ?? 'openai'
-  if (protocol !== 'openai' && protocol !== 'anthropic') {
-    throw new VisionToolkitError('config', 'provider.protocol must be "openai" or "anthropic"')
+  if (protocol !== 'openai' && protocol !== 'responses' && protocol !== 'anthropic') {
+    throw new VisionToolkitError('config', 'provider.protocol must be "openai", "responses", or "anthropic"')
+  }
+  const reasoningEffort = protocol === 'responses' ? provider.reasoningEffort?.trim() : undefined
+  if (reasoningEffort !== undefined && reasoningEffort.length > 0
+    && (reasoningEffort.length > MAX_REASONING_EFFORT_LENGTH || !REASONING_EFFORT_PATTERN.test(reasoningEffort))) {
+    throw new VisionToolkitError(
+      'config',
+      `provider.reasoningEffort must be 1-${MAX_REASONING_EFFORT_LENGTH} ASCII letters, digits, dots, underscores, or hyphens`,
+    )
   }
   const anthropicThinking = provider.anthropicThinking ?? 'omit'
   if (anthropicThinking !== 'omit' && anthropicThinking !== 'disabled' && anthropicThinking !== 'adaptive') {
@@ -433,7 +447,11 @@ export function resolveConfig(config: VisionToolkitConfig = {}): ResolvedVisionT
     .map(provider => provider.trim())
     .filter(provider => provider.length > 0)
   return {
-    provider: { baseUrl, credential, model, protocol, anthropicThinking, userAgent, headers, sessionHeaders },
+    provider: {
+      baseUrl, credential, model, protocol,
+      ...(reasoningEffort === undefined || reasoningEffort.length === 0 ? {} : { reasoningEffort }),
+      anthropicThinking, userAgent, headers, sessionHeaders,
+    },
     language,
     timeoutMs,
     maxImageBytes,

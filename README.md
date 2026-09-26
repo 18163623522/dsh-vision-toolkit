@@ -274,8 +274,14 @@ You can also configure a Profile patch:
       protocol: openai
 ```
 
-OpenAI Chat Completions-compatible endpoints and Anthropic Messages are supported. The Web Settings panel exposes the common provider, runtime, timeout, image-limit, and image-input-variant configuration.
+OpenAI Chat Completions-compatible endpoints, OpenAI Responses, and Anthropic Messages are supported. Existing configurations continue to use Chat Completions. To use a Responses-compatible endpoint, set `protocol: responses`; the plugin appends `/responses` to the configured base URL. An optional `reasoningEffort` is sent only for Responses requests:
 
+```yaml
+      protocol: responses
+      reasoningEffort: medium
+```
+
+Leaving `reasoningEffort` blank uses the model or proxy default. Common values are `none`, `minimal`, `low`, `medium`, `high`, and `xhigh`, but the field intentionally accepts provider-specific values made from letters, digits, `.`, `_`, and `-` (up to 64 characters). Support and billing vary by model or proxy; higher effort may increase reasoning tokens, latency, and cost. The Responses request sets `store: false`, but that flag does not replace reviewing the provider's own data-retention policy. The Web Settings panel exposes the full provider, runtime, timeout, image-limit, and image-input-variant configuration.
 Profile patches can also supply non-secret deployment metadata in `provider.headers`. A gateway that routes by conversation can name one or more generated headers in `provider.sessionHeaders`; OpenCode Zen, for example, requires `x-opencode-session`:
 
 ```yaml
@@ -308,7 +314,7 @@ For advanced setups — overriding `runtime.python`, using `runtime.mode: extern
 
 | Problem | What to do |
 | --- | --- |
-| The vision-model test fails with `Vision API returned an incompatible response structure` | The base URL usually needs a path prefix. Local OpenAI-compatible services such as LM Studio and Ollama should be entered as `http://127.0.0.1:1234/v1` (include `/v1`); the plugin appends `/chat/completions`, and a port-only address hits an unknown endpoint and returns this error |
+| The vision-model test fails with `Vision API returned an incompatible response structure` | The base URL usually needs a path prefix. Local OpenAI-compatible services such as LM Studio and Ollama should be entered as `http://127.0.0.1:1234/v1` (include `/v1`); the plugin appends `/chat/completions` for OpenAI Chat Completions or `/responses` for OpenAI Responses, and a port-only address may hit an unknown endpoint |
 | Pasting an image still says the model does not support image input | Restart the Web Profile, refresh the page, and confirm the selected route has the `(Vision Toolkit)` suffix. You can also place the image in the session workspace and invoke `/vision-skills` |
 | The vision service returns 429 | Wait for the `Retry-After` interval, or switch to your own endpoint when you need stable higher volume |
 | The image exceeds a size or pixel limit | Crop or resize it first; the error identifies whether bytes or decoded pixels caused the rejection |
@@ -321,9 +327,9 @@ For advanced setups — overriding `runtime.python`, using `runtime.mode: extern
 
 ## FAQ
 
-**Will adding a vision model significantly increase costs?**
+**How does a vision model affect costs?**
 
-No. Each inspection sends only the necessary intent and the image to the multimodal model, and context does not accumulate across calls, so the added cost stays small. To reduce it further, a locally deployed small multimodal side model (for example the Gemma 4 or Qwen 3.5/3.6 series) can provide the vision capability.
+Each inspection is a separate multimodal request containing the necessary intent and image; context does not accumulate across calls. Actual cost depends on the provider, image, model, and — for Responses — `reasoningEffort`. Higher effort may consume more reasoning tokens and take longer. Leave effort blank to use the provider default, or use a locally deployed small multimodal side model (for example the Gemma 4 or Qwen 3.5/3.6 series) when predictable local cost matters.
 
 ## Donation
 
