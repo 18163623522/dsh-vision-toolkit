@@ -16,9 +16,8 @@ import type {} from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-settings'
 import { ArtifactAccessController, prepareArtifactAccessKey } from './artifact-access.ts'
 import {
-  Config,
-  VISION_TOOLKIT_SETTINGS_NAMESPACE,
   prepareWatchedSettingsGeneration,
+  plainVisionConfig,
   resolveConfig,
   type ResolvedVisionToolkitConfig,
   type VisionToolkitConfig,
@@ -28,6 +27,7 @@ import { createPasteTakeoverResolver, installImageInputVariants } from './image-
 import { VisionToolkitRuntimeManager } from './runtime-manager.ts'
 import { VISION_SKILLS_SKILL } from './skill.ts'
 import { StorageHistoryStore } from './storage-history.ts'
+import { bindVisionSettings } from './settings-compat.ts'
 import { createVisionTools } from './tools.ts'
 import { PLUGIN_VERSION } from './version.ts'
 import { installVisionToolkitWeb, VisionToolkitWebBackend } from './web.ts'
@@ -35,7 +35,7 @@ import { MAX_PASTE_IMAGE_BYTES, PastedImageBackend } from './paste-images.ts'
 
 export const name = '@anionex/dsh-vision-toolkit'
 
-export { Config }
+export { Config } from './config.ts'
 
 export const inject = ['tools', 'credentials', 'skills', 'subprocess', 'settings', 'agents', 'sessions']
 
@@ -45,11 +45,7 @@ export async function apply(ctx: Context, config: VisionToolkitConfig = {}): Pro
   // or Tool becomes visible. The custom Web editor preflights runtime changes
   // before persistence; hand-edited settings still fail loud here or retain
   // the last serving generation when changed live.
-  const settings = ctx.settings.register(VISION_TOOLKIT_SETTINGS_NAMESPACE, Config, {
-    base: config,
-    applies: 'live',
-    validate: (value) => { resolveConfig(value) },
-  })
+  const settings = bindVisionSettings(ctx, plainVisionConfig(config))
   const manager = new VisionToolkitRuntimeManager(ctx)
   const artifacts = new ArtifactAccessController(await prepareArtifactAccessKey())
   const lifecycle = new AbortController()
