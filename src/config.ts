@@ -9,7 +9,7 @@
 import z from '@deepseek-ai/schemastery'
 import type Schema from '@deepseek-ai/schemastery'
 import { credentialRef, type CredentialRef } from '@deepseek-ai/dsh-credentials'
-import type { SettingsNamespace } from '@deepseek-ai/dsh-settings'
+import SettingsService, { type SettingsNamespace } from '@deepseek-ai/dsh-settings'
 import { VisionToolkitError } from './errors.ts'
 import {
   BUILT_IN_FREE_VISION_BASE_URL,
@@ -134,35 +134,66 @@ export interface VisionToolkitConfig {
 }
 
 /** Configuration schema with the documented P0 defaults. */
-export const Config: Schema<VisionToolkitConfig> = z.object({
+export const VolatileConfig: Schema<VisionToolkitConfig> = z.object({
   provider: z.object({
-    baseUrl: z.string().default(BUILT_IN_FREE_VISION_BASE_URL),
-    credential: z.string().default(BUILT_IN_FREE_VISION_CREDENTIAL),
-    model: z.string().default(BUILT_IN_FREE_VISION_MODEL),
-    protocol: z.union(['openai', 'anthropic'] as const).default('openai'),
-    anthropicThinking: z.union(['omit', 'disabled', 'adaptive'] as const).default('omit'),
-    userAgent: z.string().default(DEFAULT_VISION_USER_AGENT),
+    baseUrl: z.string().default(BUILT_IN_FREE_VISION_BASE_URL).volatile(),
+    credential: z.string().default(BUILT_IN_FREE_VISION_CREDENTIAL).volatile(),
+    model: z.string().default(BUILT_IN_FREE_VISION_MODEL).volatile(),
+    protocol: z.union(['openai', 'anthropic'] as const).default('openai').volatile(),
+    anthropicThinking: z.union(['omit', 'disabled', 'adaptive'] as const).default('omit').volatile(),
+    userAgent: z.string().default(DEFAULT_VISION_USER_AGENT).volatile(),
   }),
-  language: z.union(['zh', 'en'] as const).default('zh'),
-  timeoutMs: z.number().default(30000),
-  maxImageBytes: z.number().default(4194304),
-  maxImagePixels: z.number().default(20000000),
-  concurrency: z.number().default(4),
+  language: z.union(['zh', 'en'] as const).default('zh').volatile(),
+  timeoutMs: z.number().default(30000).volatile(),
+  maxImageBytes: z.number().default(4194304).volatile(),
+  maxImagePixels: z.number().default(20000000).volatile(),
+  concurrency: z.number().default(4).volatile(),
   runtime: z.object({
-    mode: z.union(['managed', 'external'] as const).default('managed'),
-    agentVisionToolkitPath: z.string(),
-    python: z.string(),
+    mode: z.union(['managed', 'external'] as const).default('managed').volatile(),
+    agentVisionToolkitPath: z.string().volatile(),
+    python: z.string().volatile(),
   }),
-  storageDir: z.string(),
-  storageHistory: z.array(z.string()).default([]),
-  allowedDirs: z.array(z.string()).default([]),
+  storageDir: z.string().volatile(),
+  storageHistory: z.array(z.string()).default([]).volatile(),
+  allowedDirs: z.array(z.string()).default([]).volatile(),
   imageInputVariants: z.object({
-    enabled: z.boolean().default(true),
-    providers: z.array(z.string()).default([]),
-    autoSwitch: z.boolean().default(true),
-    hidden: z.boolean().default(true),
+    enabled: z.boolean().default(true).volatile(),
+    providers: z.array(z.string()).default([]).volatile(),
+    autoSwitch: z.boolean().default(true).volatile(),
+    hidden: z.boolean().default(true).volatile(),
   }),
 })
+
+/** Older Settings resolves Config directly and cannot consume volatile values. */
+export const LegacyConfig: Schema<VisionToolkitConfig> = (() => {
+  const serialized = VolatileConfig.toJSON()
+  for (const node of Object.values(serialized.refs ?? {})) {
+    if (node.meta !== undefined) delete node.meta.volatile
+  }
+  return new z(serialized) as Schema<VisionToolkitConfig>
+})()
+
+/** Cordis resolves this export before apply(); select the host's schema dialect here. */
+export const Config: Schema<VisionToolkitConfig> = typeof (SettingsService.prototype as { register?: unknown }).register === 'function'
+  ? LegacyConfig
+  : VolatileConfig
+
+/** Resolve Schemastery's live field wrappers into ordinary config data. */
+export function plainVisionConfig(value: VisionToolkitConfig): VisionToolkitConfig {
+  const visit = (current: unknown): unknown => {
+    if (current !== null && typeof current === 'object'
+      && typeof (current as { get?: unknown }).get === 'function'
+      && Symbol.for('cosmokit.volatile.write') in current) {
+      return visit((current as { get(): unknown }).get())
+    }
+    if (Array.isArray(current)) return current.map(visit)
+    if (current !== null && typeof current === 'object') {
+      return Object.fromEntries(Object.entries(current).map(([key, child]) => [key, visit(child)]))
+    }
+    return current
+  }
+  return visit(value) as VisionToolkitConfig
+}
 
 /** Configuration after static validation, with every default materialized. */
 export interface ResolvedVisionToolkitConfig {

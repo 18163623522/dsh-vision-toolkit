@@ -4,6 +4,10 @@ All notable user-facing changes to DSH Vision Toolkit are documented in this fil
 
 ## [Unreleased]
 
+### Fixed
+
+- Restored startup and live Settings on DSH 0.1.7, whose Config projection replaced the old `settings.register/get/watch` API. The plugin now uses the host's matching Schema form, unwraps live configuration values for runtime use, and follows Settings document updates. Earlier DSH versions continue using their registration API.
+
 ## [0.1.45] - 2026-09-14
 
 ### Fixed
