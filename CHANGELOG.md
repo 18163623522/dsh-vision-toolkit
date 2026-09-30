@@ -4,6 +4,13 @@ All notable user-facing changes to DSH Vision Toolkit are documented in this fil
 
 ## [Unreleased]
 
+## [0.1.46] - Unreleased
+
+### Compatibility
+
+- Verified DSH `0.2.0-rc.2` using an isolated, hoisted tarball Profile, actual visual-tool calls, and Web Settings. Add an exact peer/compatibility declaration and a required CI Profile lane for this release. The fixture explicitly selects its OpenAI-compatible protocol after the host's default provider protocol changed.
+- 已通过 DSH `0.2.0-rc.2` 隔离压缩包 Profile、真实视觉工具调用及 Web 设置验收；增加确切兼容声明及 CI 验收矩阵。官方默认协议变更后，测试 fixture 显式选择原有 OpenAI 协议。候选版 0.1.46 尚未发布；核实时官方尚无正式稳定版。
+
 ### Added
 
 - Added an explicit OpenAI Responses protocol for custom vision providers. An optional, constrained `reasoningEffort` is forwarded only for Responses requests, exposed conditionally in bilingual Settings, and included in both live-Session and durable evidence cache identities. Existing OpenAI configurations remain on Chat Completions and omit effort by default.
@@ -471,7 +478,8 @@ All notable user-facing changes to DSH Vision Toolkit are documented in this fil
 - Runtime teardown cancels in-flight operations before removing Agent-scoped tools, the activation bootstrap, and the Skill.
 - The Web client is published through the current nested `dsh.client` manifest and loader-compatible built artifact required by DSH snapshot0810.
 
-[Unreleased]: https://github.com/Anionex/dsh-vision-toolkit/compare/v0.1.45...HEAD
+[Unreleased]: https://github.com/Anionex/dsh-vision-toolkit/compare/v0.1.46...HEAD
+[0.1.46]: https://github.com/Anionex/dsh-vision-toolkit/compare/v0.1.45...v0.1.46
 [0.1.45]: https://github.com/Anionex/dsh-vision-toolkit/compare/v0.1.44...v0.1.45
 [0.1.44]: https://github.com/Anionex/dsh-vision-toolkit/compare/v0.1.43...v0.1.44
 [0.1.43]: https://github.com/Anionex/dsh-vision-toolkit/compare/v0.1.42...v0.1.43
