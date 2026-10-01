@@ -4,12 +4,12 @@ All notable user-facing changes to DSH Vision Toolkit are documented in this fil
 
 ## [Unreleased]
 
-## [0.1.46] - Unreleased
+## [0.1.46] - 2026-10-01
 
 ### Compatibility
 
 - Verified DSH `0.2.0-rc.2` using an isolated, hoisted tarball Profile, actual visual-tool calls, and Web Settings. Add an exact peer/compatibility declaration and a required CI Profile lane for this release. The fixture explicitly selects its OpenAI-compatible protocol after the host's default provider protocol changed.
-- 已通过 DSH `0.2.0-rc.2` 隔离压缩包 Profile、真实视觉工具调用及 Web 设置验收；增加确切兼容声明及 CI 验收矩阵。官方默认协议变更后，测试 fixture 显式选择原有 OpenAI 协议。候选版 0.1.46 尚未发布；核实时官方尚无正式稳定版。
+- 已通过 DSH `0.2.0-rc.2` 隔离压缩包 Profile、真实视觉工具调用及 Web 设置验收；增加确切兼容声明及 CI 验收矩阵。官方默认协议变更后，测试 fixture 显式选择原有 OpenAI 协议。核实时官方尚无正式稳定版。
 
 ### Added
 
