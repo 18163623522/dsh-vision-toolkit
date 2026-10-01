@@ -59,6 +59,8 @@ jobs:
           # because the peer ranges and the runtime probes still support them.
           - node: 24.x
             dsh: 0.1.5-rc.1
+          - node: 24.x
+            dsh: 0.2.0-rc.2
 
     steps:
       - name: Check out repository

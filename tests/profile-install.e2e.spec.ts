@@ -301,6 +301,9 @@ describe.skipIf(!profileE2eAvailable)('dsh-vision-toolkit profile install (keyle
   it('installs, boots, calls vision_glance through the real profile, and uninstalls cleanly', async () => {
     const home = mkdtempSync(join(tmpdir(), 'dsh-vt-profile-'))
     homes.push(home)
+    const profileDir = join(home, 'profiles', 'headless')
+    mkdirSync(profileDir, { recursive: true })
+    writeFileSync(join(profileDir, 'pnpm-workspace.yaml'), 'packages:\n  - .\nnodeLinker: hoisted\nautoInstallPeers: false\n')
     const packageDir = join(home, 'package')
     mkdirSync(packageDir)
     const tarball = packPlugin(packageDir)
@@ -320,6 +323,28 @@ describe.skipIf(!profileE2eAvailable)('dsh-vision-toolkit profile install (keyle
         JSON.stringify({ images: [SAMPLE_IMAGE] }),
         'vision done',
       )
+      // DSH 0.2's official route speaks DeepSeek Messages. Keep this fixture
+      // explicitly on its OpenAI chat-completions protocol instead.
+      if (REQUIRED_DSH_VERSION.startsWith('0.2.')) {
+        writeFileSync(patch, [
+          '\n- id: llm-pi-ai',
+          '  config:',
+          '    providers:',
+          '      fixture:',
+          '        api: openai-completions',
+          '        baseURL: !!js process.env.DEEPSEEK_BASE_URL',
+          '        apiKeyEnv: DEEPSEEK_API_KEY',
+          '        models:',
+          '          - id: fixture-model',
+          '            contextWindow: 128000',
+          '            maxTokens: 4096',
+          '- id: agent-default-model',
+          '  config:',
+          '    provider: fixture',
+          '    model: fixture-model',
+          '',
+        ].join('\n'), { flag: 'a' })
+      }
       try {
         const run = await runDsh([
           '--profile', 'headless', '--patch', patch,
@@ -334,7 +359,11 @@ describe.skipIf(!profileE2eAvailable)('dsh-vision-toolkit profile install (keyle
         expect(run.code, run.stderr).toBe(0)
         expect(run.stdout).toBe('vision done')
         expect(existsSync(join(home, 'profiles', 'headless', 'node_modules', 'schemastery'))).toBe(false)
-        expect(existsSync(join(home, 'profiles', 'node_modules', '@deepseek-ai', 'schemastery'))).toBe(true)
+        // 0.2 resolves host singletons through its import hook instead of
+        // materializing the former shared profiles/node_modules fallback.
+        if (!REQUIRED_DSH_VERSION.startsWith('0.2.')) {
+          expect(existsSync(join(home, 'profiles', 'node_modules', '@deepseek-ai', 'schemastery'))).toBe(true)
+        }
         expectProgressiveExposure(server.requests)
         const bodies = JSON.stringify(server.requests.map(request => request.body))
         expect(bodies).toContain('vision_glance')
